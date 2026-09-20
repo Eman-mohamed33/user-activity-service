@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-activity-api
+  namespace: user-activity
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: user-activity-api }
+  template:
+    metadata: { labels: { app: user-activity-api } }
+    spec:
+      containers:
+        - name: api
+          image: user-activity-service:local
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 3000 }]
+          envFrom: [{ configMapRef: { name: user-activity-config } }]
+          env:
+            - name: KAFKA_CLIENT_ID
+              value: user-activity-service
+          readinessProbe:
+            httpGet: { path: /health, port: 3000 }
+            initialDelaySeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 3000 }
+            initialDelaySeconds: 20
+          resources: { requests: { cpu: 100m, memory: 128Mi }, limits: { cpu: 500m, memory: 256Mi } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-activity-api
+  namespace: user-activity
+spec:
+  type: NodePort
+  selector: { app: user-activity-api }
+  ports: [{ port: 3000, targetPort: 3000 }]

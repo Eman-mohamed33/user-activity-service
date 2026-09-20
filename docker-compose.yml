@@ -1,0 +1,43 @@
+services:
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  redpanda:
+    image: redpandadata/redpanda:v24.3.5
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp=1
+      - --memory=1G
+      - --reserve-memory=0M
+      - --check=false
+      - --node-id=0
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
+    ports:
+      - "19092:19092"
+      - "9644:9644"
+
+  api:
+    build: .
+    depends_on:
+      - mongodb
+      - redpanda
+    environment:
+      PORT: 3000
+      MONGO_URL: mongodb://mongodb:27017
+      MONGO_DATABASE: user_activity
+      KAFKA_BROKERS: redpanda:9092
+      KAFKA_CLIENT_ID: user-activity-service
+      KAFKA_GROUP_ID: user-activity-consumers
+      KAFKA_TOPIC: user-activity
+    ports:
+      - "3000:3000"
+
+volumes:
+  mongo-data:
